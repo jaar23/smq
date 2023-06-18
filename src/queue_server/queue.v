@@ -4,11 +4,29 @@ module queue_server
 pub struct Queue[T] {
 	topic []Topic[T]
 	port  int
+	state QueueState
+}
+
+pub enum QueueState {
+	pause
+	resume
 }
 
 pub struct QueueError {
 	code          int
 	error_message string
+}
+
+pub fn (mut q Queue[T]) start() {
+}
+
+pub fn (mut q Queue[T]) stop() {
+}
+
+pub fn (mut q Queue[T]) pause() {
+}
+
+pub fn (mut q Queue[T]) resume() {
 }
 
 pub fn (mut q Queue[T]) new_topic(mut topic Topic[T]) {
@@ -39,5 +57,15 @@ pub fn (mut q Queue[T]) put(topic_name string, data T) ! {
 			error_message: 'Topic not found'
 		}
 	}
-	topic.put(data)
+	topic.enqueue(data)
+}
+
+pub fn (mut q Queue[T]) get(topic_name string, data T) !T {
+	topic := q.get_topic(topic_name) or {
+		return QueueError{
+			code: 1
+			error_message: 'Topic not found'
+		}
+	}
+	return topic.dequeue()
 }

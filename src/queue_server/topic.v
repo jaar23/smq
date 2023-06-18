@@ -1,17 +1,31 @@
 module queue_server
 
+pub type TopicHandlerFn[T] = fn (args T)
+
 [heap]
 pub struct Topic[T] {
 pub mut:
-	name string
-	list LinkedList[T]
+	name    string
+	list    LinkedList[T]
+	channel &TopicChannel[T]
 }
+
+pub struct TopicError {
+	code    int
+	message string
+}
+
+// pub type TopicOnError = fn (err string)
 
 pub fn new_topic[T](topic_name string) Topic[T] {
 	mut topic := Topic[T]{
 		name: topic_name
+		list: LinkedList[T]{}
+		channel: &TopicChannel[T]{
+			channel: chan T{}
+			auth: false
+		}
 	}
-	topic.list = LinkedList[T]{}
 	return topic
 }
 
@@ -30,21 +44,33 @@ pub fn (mut t Topic[T]) dequeue() ?T {
 	return node?.data
 }
 
-pub fn (mut t Topic[T]) parallel_endeq(data T) {
-	for _ in 0 .. 20000 {
-		spawn t.enqueue(data)
-		// spawn t.dequeue()
-		// spawn t.enqueue(data)
-		// spawn t.enqueue(data)
-		// spawn t.dequeue()
-	}
-	for _ in 0 .. 30000 {
-		spawn t.dequeue()
-		spawn t.enqueue(data)
-	}
-
-	for _ in 0 .. 100 {
-		spawn t.enqueue(data)
-	}
-	// dump(t)
+pub fn (mut t Topic[T]) subscribe(handler TopicHandlerFn[T]) ! {
+	spawn t.channel.subscribe(handler)
 }
+
+pub fn (mut t Topic[T]) subscribe_block(handler TopicHandlerFn[T]) ! {
+	t.channel.subscribe(handler) or {
+		println('error on result subscribed')
+		return
+	}
+}
+
+//
+// pub fn (mut t Topic[T]) parallel_endeq(data T) {
+// 	for _ in 0 .. 20000 {
+// 		spawn t.enqueue(data)
+// 		// spawn t.dequeue()
+// 		// spawn t.enqueue(data)
+// 		// spawn t.enqueue(data)
+// 		// spawn t.dequeue()
+// 	}
+// 	for _ in 0 .. 30000 {
+// 		spawn t.dequeue()
+// 		spawn t.enqueue(data)
+// 	}
+//
+// 	for _ in 0 .. 100 {
+// 		spawn t.enqueue(data)
+// 	}
+// 	// dump(t)
+// }
