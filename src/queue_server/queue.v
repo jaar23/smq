@@ -61,6 +61,14 @@ pub fn (q Queue[T]) get_topic(topic_name string) ?&Topic[T] {
 	return none
 }
 
+pub fn (mut q Queue[T]) set_addr(addr string) {
+	q.addr = addr
+}
+
+pub fn (mut q Queue[T]) get_addr() {
+	return q.addr
+}
+
 pub fn (mut q Queue[T]) set_port(port int) {
 	q.port = port
 }
