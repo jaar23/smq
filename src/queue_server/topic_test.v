@@ -80,18 +80,38 @@ fn test_subscribe() {
 	spawn t.channel.send('another thing')
 	// t.channel.listen() or { println('${err}') }
 	t.subscribe(f) or { println('${err}') }
+	// t.channel.start()
 	spawn t.channel.send('another thing 2')
+	t.channel.stop()
 }
+//
+// fn test_subscribe_block() {
+// 	mut t := queue_server.new_topic[string]('test topic')
+// 	t.channel.start()
+// 	f := fn (data string) {
+// 		println('success')
+// 		println(data)
+// 	}
+// 	spawn t.channel.send('something')
+// 	spawn t.channel.send('another thing')
+// 	t.subscribe_block(f) or { println('${err}') }
+// 	spawn t.channel.send('another thing 2')
+// }
+//
 
-fn test_subscribe_block() {
+fn test_publish() {
 	mut t := queue_server.new_topic[string]('test topic')
 	t.channel.start()
 	f := fn (data string) {
 		println('success')
 		println(data)
 	}
-	spawn t.channel.send('something')
-	spawn t.channel.send('another thing')
-	t.subscribe_block(f) or { println('${err}') }
-	spawn t.channel.send('another thing 2')
+	t.publish('publish something') or { println('${err}')}
+	t.publish('publish another thing') or {println(
+		'${err}')}
+	// t.channel.listen() or { println('${err}') }
+	t.subscribe(f) or { println('${err}') }
+	// t.channel.start()
+	t.publish('publish another thing 2') or {println('${err}')}
+	t.channel.stop()
 }

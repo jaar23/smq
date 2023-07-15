@@ -3,6 +3,7 @@ module queue_server
 pub struct LinkedList[T] {
 mut:
 	head ?&ListNode[T]
+	tail ?&ListNode[T]
 	size int
 }
 
@@ -26,43 +27,70 @@ pub fn (mut l LinkedList[T]) prepend(mut node ListNode[T]) {
 	} else {
 		l.head = node
 		l.size = 1
+		l.tail = l.head
 	}
 }
+
+// deprecated
+//
+// pub fn (mut l LinkedList[T]) append(mut node ListNode[T]) ?int {
+// 	if l.head == none {
+// 		l.head = node
+// 		l.size = 1
+// 		l.tail = l.head
+// 		return l.size
+// 	}
+// 	mut curr_node := l.head
+// 	for {
+// 		if curr_node != none {
+// 			if next_node := curr_node?.next {
+// 				curr_node = next_node
+// 			} else {
+// 				curr_node?.next = node
+// 				l.tail = node
+// 				l.size = l.size + 1
+// 				break
+// 			}
+// 		}
+// 	}
+// 	return l.size
+// }
 
 pub fn (mut l LinkedList[T]) append(mut node ListNode[T]) ?int {
 	if l.head == none {
 		l.head = node
 		l.size = 1
+		l.tail = l.head
+		return l.size
+	} else if l.tail == none {
+		return none
+	} else {
+		mut last_node := l.tail
+		last_node?.next = node
+		l.tail = node
+		l.size += 1
 		return l.size
 	}
-	mut curr_node := l.head
-	for {
-		if curr_node != none {
-			if next_node := curr_node?.next {
-				curr_node = next_node
-			} else {
-				curr_node?.next = node
-				l.size = l.size + 1
-				break
-			}
-		}
-	}
-	return l.size
 }
 
+// deprecated
+// pub fn (l LinkedList[T]) find_last() ?&ListNode[T] {
+// 	mut curr_node := l.head
+// 	for {
+// 		if curr_node != none {
+// 			if next_node := curr_node?.next {
+// 				curr_node = next_node
+// 			} else {
+// 				println('found node, its data: ${curr_node?.data}')
+// 				break
+// 			}
+// 		}
+// 	}
+// 	return curr_node
+// }
+
 pub fn (l LinkedList[T]) find_last() ?&ListNode[T] {
-	mut curr_node := l.head
-	for {
-		if curr_node != none {
-			if next_node := curr_node?.next {
-				curr_node = next_node
-			} else {
-				println('found node, its data: ${curr_node?.data}')
-				break
-			}
-		}
-	}
-	return curr_node
+	return l.tail
 }
 
 pub fn (l LinkedList[T]) find_at(pos int) ?&ListNode[T] {

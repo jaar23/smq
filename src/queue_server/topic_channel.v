@@ -11,17 +11,28 @@ pub enum ChannelState {
 
 pub struct TopicChannel[T] {
 mut:
-	channel chan T
-	auth    bool
-	state   ChannelState
+	channel    chan T
+	auth       bool
+	state      ChannelState
+	subscriber []string
+}
+
+pub fn default_channel[T]() TopicChannel[T] {
+	mut tc := TopicChannel[T]{
+		channel: chan T{}
+		auth: false
+		state: ChannelState.stop
+	}
+	return tc
 }
 
 pub fn (mut t TopicChannel[T]) send(data T) ! {
+	println('sending data')
 	t.channel <- data
 }
 
 pub fn (mut t TopicChannel[T]) recv() !T {
-	data := <- t.channel
+	data := <-t.channel
 	return data
 }
 
@@ -40,7 +51,6 @@ pub fn (mut t TopicChannel[T]) listen() ! {
 	}
 	println('channel exit..')
 }
-
 
 pub fn (mut t TopicChannel[T]) subscribe(handler TopicHandlerFn[T]) ! {
 	for {
@@ -70,7 +80,9 @@ pub fn (mut t TopicChannel[T]) resume() {
 }
 
 pub fn (mut t TopicChannel[T]) stop() {
+	// println('len: ${t.channel.len}')
 	t.state = ChannelState.stop
+	t.channel.close()
 	println('channel is stop')
 }
 
@@ -79,7 +91,6 @@ pub fn (mut t TopicChannel[T]) start() {
 	t.channel = chan T{}
 	println('channel started')
 }
-
 
 // pub fn (mut t TopicChannel[T]) observe() {
 // 	for {
@@ -112,26 +123,26 @@ pub fn (mut t TopicChannel[T]) start() {
 //
 // fn main() {
 // 	mut tc := &TopicChannel[string]{channel: chan string{}, auth: false}
-	// spawn tc.observe()
-	// spawn tc.listen()
-	// tc.send('hello, world') or {
-	// 	println('unable to send message')
-	// 	return
-	// }
-	// spawn tc.send('hello, world 2')
-	// spawn tc.send('hello, world 3')
-	// t := spawn tc.send('hello, world 4')
-	// // spawn fn[T](mut tc TopicChannel[T], data T) {
-	// 	println('call after 5 sec')
-	// 	time.sleep(5 * time.second)
-	// 	*tc.send(data) or {
-	// 		panic('unable to send to channel after channel is listening')
-	// 	}
-	// }(mut tc, 'hhhhhhhhhhhhhh')
-	// spawn tc.listen()
-	// time.sleep(5 * time.second)
-	// t.wait()
-	// for {
-		// tc.send('cvcvcvcvcvc')
-	// }
+// spawn tc.observe()
+// spawn tc.listen()
+// tc.send('hello, world') or {
+// 	println('unable to send message')
+// 	return
+// }
+// spawn tc.send('hello, world 2')
+// spawn tc.send('hello, world 3')
+// t := spawn tc.send('hello, world 4')
+// // spawn fn[T](mut tc TopicChannel[T], data T) {
+// 	println('call after 5 sec')
+// 	time.sleep(5 * time.second)
+// 	*tc.send(data) or {
+// 		panic('unable to send to channel after channel is listening')
+// 	}
+// }(mut tc, 'hhhhhhhhhhhhhh')
+// spawn tc.listen()
+// time.sleep(5 * time.second)
+// t.wait()
+// for {
+// tc.send('cvcvcvcvcvc')
+// }
 // }
