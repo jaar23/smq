@@ -54,6 +54,11 @@ pub fn new_queue_handler[T](mut conn TcpConn) QueueHandler[T] {
 	return handler
 }
 
+pub fn (h QueueHandler[T]) process_request(mut topics []Topic[T]) {
+	mut conn := <-h.channel
+	spawn handle_request[string](mut conn, mut topics)
+}
+
 pub fn Response.new(status ResponseStatus, code int, message string, data string) Response {
 	return Response{
 		status: status
@@ -74,11 +79,6 @@ pub fn (resp Response) to_byte() []u8 {
 		}
 	}
 	return result.bytes()
-}
-
-pub fn (mut h QueueHandler[T]) process_request(mut topics []Topic[T]) {
-	mut conn := <-h.channel
-	spawn handle_request[string](mut conn, mut topics)
 }
 
 pub fn handle_request[T](mut conn TcpConn, mut topics []Topic[T]) {
@@ -186,6 +186,11 @@ pub fn handle_request[T](mut conn TcpConn, mut topics []Topic[T]) {
 						result = topic_size.str()
 						break
 					}
+				}
+				if not_found {
+					code = 6
+					status = ResponseStatus.err
+					message = 'Fail to cound${request.topic_name}, it is not found'
 				}
 			}
 			// else {

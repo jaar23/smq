@@ -55,15 +55,15 @@ pub fn init_queue[T]() Queue[T] {
 }
 
 pub fn init_queue_with_config[T](path string) !Queue[T] {
-	config := read_config(path) or {panic('Unable to read config file: ${err}')}
-	addr :=  config.value('queue.addr').string()
+	config := read_config(path) or { panic('Unable to read config file: ${err}') }
+	addr := config.value('queue.addr').string()
 	port := config.value('queue.port').int()
 	default_topic := config.value('queue.default_topic').string().trim_space()
 	println(term.bold('smq configuration'))
 	println('address            : ${addr}')
 	println('port               : ${port}')
 	println('default topic      : ${default_topic}')
-	mut q := Queue[T] {
+	mut q := Queue[T]{
 		addr: addr
 		port: port
 		topic: [Topic.new[T](default_topic)]
@@ -71,9 +71,9 @@ pub fn init_queue_with_config[T](path string) !Queue[T] {
 	}
 
 	defined_topics := config.value('queue.topics').array()
-	for n in 0.. defined_topics.len{
+	for n in 0 .. defined_topics.len {
 		name := defined_topics[n].value('name').string().trim_space()
-	  mut topic := Topic.new[T](name)
+		mut topic := Topic.new[T](name)
 		q.new_topic(mut topic)
 		println('user defined topic : ${name}')
 	}
@@ -140,7 +140,7 @@ pub fn (mut q Queue[T]) listen() ? {
 			eprintln('accept() failed, reason: ${err}; skipping')
 			continue
 		}
-		mut handler := new_queue_handler[T](mut connection)
+		handler := new_queue_handler[T](mut connection)
 		handler.process_request[string](mut &q.topic)
 	}
 }
