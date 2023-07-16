@@ -3,7 +3,7 @@ module queue_test
 import time
 import net
 import io
-import queue_server
+import queue_server as qs
 
 fn test_queue_listen() {
 	// mut t := queue_server.new_topic[string]
@@ -12,7 +12,7 @@ fn test_queue_listen() {
 	// 	port: 6789
 	// }
 	// q.new_topic(mut t)
-	mut queue := queue_server.init_queue[string]()
+	mut queue := qs.init_queue[string]()
 	print_msg := fn (message string) {
 		println(message)
 	}

@@ -2,6 +2,7 @@ module queue_server
 
 import net { TcpConn }
 import io
+import os
 
 // GET $Topic
 // PUT $Topic:$Data
@@ -23,6 +24,7 @@ pub enum Command {
 	put
 	clear
 	new
+	count
 }
 
 pub struct Request {
@@ -30,6 +32,18 @@ pub mut:
 	command    Command
 	topic_name string
 	data       string
+}
+
+pub enum ResponseStatus {
+	ok
+	err
+}
+
+pub struct Response {
+	status  ResponseStatus
+	code    int
+	message string
+	data    string
 }
 
 pub fn new_queue_handler[T](mut conn TcpConn) QueueHandler[T] {
@@ -40,15 +54,34 @@ pub fn new_queue_handler[T](mut conn TcpConn) QueueHandler[T] {
 	return handler
 }
 
-pub fn (mut h QueueHandler[T]) response(data []u8) {
+pub fn Response.new(status ResponseStatus, code int, message string, data string) Response {
+	return Response{
+		status: status
+		code: code
+		message: message
+		data: data
+	}
+}
+
+pub fn (resp Response) to_byte() []u8 {
+	mut result := 'STATUS ${resp.status}\r\n'
+	result += 'CODE ${resp.code.str()}\r\n'
+	result += 'MESSAGE ${resp.message}\r\n'
+	result += '${resp.data}\r\n'
+	if log_level := os.getenv_opt('SMQ_LOG_LEVEL') {
+		if log_level == 'DEBUG' || log_level == 'debug' {
+			println(result)
+		}
+	}
+	return result.bytes()
 }
 
 pub fn (mut h QueueHandler[T]) process_request(mut topics []Topic[T]) {
 	mut conn := <-h.channel
-	spawn QueueHandler.handle_request[string](mut conn, mut topics)
+	spawn handle_request[string](mut conn, mut topics)
 }
 
-pub fn QueueHandler.handle_request[T](mut conn TcpConn, mut topics []Topic[T]) {
+pub fn handle_request[T](mut conn TcpConn, mut topics []Topic[T]) {
 	defer {
 		conn.close() or { eprintln('connectiong close() failed: ${err}') }
 	}
@@ -68,11 +101,15 @@ pub fn QueueHandler.handle_request[T](mut conn TcpConn, mut topics []Topic[T]) {
 			println('line is empty')
 			continue
 		}
-		mut result := ''.bytes()
-		println('receive command: ${line}')
+		mut result := ''
+		mut code := 0
+		mut status := ResponseStatus.ok
+		mut message := ''
+		// println('receive command: ${line}')
 		request := parse_command(line) or {
-			result = 'Invalid line of request, valid line will be COMMAND TOPIC <MESSAGE>'.bytes()
-			conn.write(result) or { eprintln('cannot response due to ${err}') }
+			message = 'Invalid line of request, valid line will be COMMAND TOPIC <MESSAGE>'
+			resp := Response.new(ResponseStatus.err, 2, message, result)
+			conn.write(resp.to_byte()) or { eprintln('cannot response due to ${err}') }
 			return
 		}
 		match request.command {
@@ -80,8 +117,18 @@ pub fn QueueHandler.handle_request[T](mut conn TcpConn, mut topics []Topic[T]) {
 				// get message by topic name from topics
 				for i in 0 .. topics.len {
 					if request.topic_name == topics[i].name {
-						result = topics[i].dequeue_byte()
-						println('dequeue: ${result}')
+						result = topics[i].dequeue() or {
+							code = 3
+							message = 'Data not found'
+							resp := Response.new(status, code, message, result)
+							conn.set_read_timeout(queue_server.read_timeout)
+							conn.set_write_timeout(queue_server.write_timeout)
+							conn.write(resp.to_byte()) or {
+								eprintln('cannot handle response: ${err}')
+							}
+							return
+						}
+						// println('dequeue: ${result}')
 						break
 					}
 				}
@@ -90,32 +137,66 @@ pub fn QueueHandler.handle_request[T](mut conn TcpConn, mut topics []Topic[T]) {
 				// put message into topic by topic name
 				for i in 0 .. topics.len {
 					if request.topic_name == topics[i].name {
-						topics[i].enqueue(request.data)
+						topics[i].enqueue[T](request.data)
 						break
 					}
 				}
 			}
 			.new {
-				topic := Topic.new_topic[T](request.topic_name)
-				topics << topic
-				result = '${request.topic_name} is added to topics'.bytes()
+				mut found := false
+				for i in 0 .. topics.len {
+					if request.topic_name == topics[i].name {
+						found = true
+						break
+					}
+				}
+				if found {
+					status = ResponseStatus.err
+					code = 4
+					message = '${request.topic_name} already existed'
+				} else {
+					topic := Topic.new[T](request.topic_name)
+					topics << topic
+					message = '${request.topic_name} is added to topics'
+				}
 			}
 			.clear {
+				mut is_reset := false
 				for i in 0 .. topics.len {
 					if request.topic_name == topics[i].name {
 						topics[i].list.destroy()
+						message = '${request.topic_name} has been reset'
+						is_reset = true
+						break
+					}
+				}
+				if !is_reset {
+					code = 5
+					status = ResponseStatus.err
+					message = '${request.topic_name} fail to reset, it is probably not found'
+				}
+			}
+			.count {
+				mut not_found := true
+				for i in 0 .. topics.len {
+					if request.topic_name == topics[i].name {
+						topic_size := topics[i].list.size
+						message = '${request.topic_name} has ${topic_size.str()} in queue'
+						not_found = false
+						result = topic_size.str()
 						break
 					}
 				}
 			}
-			else {
-				result = 'Invalid command parsed, valid command are GET, PUT, CLEAR, NEW'.bytes()
-				conn.write(result) or { eprintln('cannot response due to ${err}') }
-			}
+			// else {
+			// 	result = 'Invalid command parsed, valid command are GET, PUT, CLEAR, NEW'.bytes()
+			// 	conn.write(result) or { eprintln('cannot response due to ${err}') }
+			// }
 		}
+		resp := Response.new(status, code, message, result)
 		conn.set_read_timeout(queue_server.read_timeout)
 		conn.set_write_timeout(queue_server.write_timeout)
-		conn.write(result) or { eprintln('cannot handle response: ${err}') }
+		conn.write(resp.to_byte()) or { eprintln('cannot handle response: ${err}') }
 		break
 	}
 	return
@@ -158,14 +239,12 @@ pub fn parse_command(line string) ?Request {
 			topic_name: topic_name
 			data: ''
 		}
+	} else if request_arr[0] == 'COUNT' || request_arr[0] == 'count' {
+		return Request{
+			command: Command.count
+			topic_name: topic_name
+			data: ''
+		}
 	}
 	return none
 }
-
-// pub fn get_topic_message[T](mut topic Topic[T]) []u8 {
-// 	return topic.dequeue_byte()
-// }
-//
-// pub fn put_topic_message[T](mut topic Topic[T], data T) {
-// 	topic.enqueue(data)
-// }

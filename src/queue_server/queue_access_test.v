@@ -21,7 +21,7 @@ import io
 // }
 
 fn test_queue_write() ! {
-	for n in 0 .. 50 {
+	for n in 0 .. 100 {
 		mut client := net.dial_tcp('127.0.0.1:6789') or { panic('${err}') }
 		client.set_read_timeout(30 * time.second)
 		client.set_write_timeout(30 * time.second)

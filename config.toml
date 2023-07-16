@@ -1,0 +1,8 @@
+[queue]
+addr="127.0.0.1"
+port=6789
+default_topic="default"
+topics = [
+  { name = "q1" }
+]
+

@@ -22,7 +22,7 @@ pub struct TopicError {
 }
 
 // change chan to unbuffered cap when needted to implement pub sub
-pub fn Topic.new_topic[T](topic_name string) Topic[T] {
+pub fn Topic.new[T](topic_name string) Topic[T] {
 	// mut topic := Topic[T]{
 	// 	name: topic_name
 	// 	list: LinkedList[T]{}
@@ -40,7 +40,7 @@ pub fn Topic.new_topic[T](topic_name string) Topic[T] {
 	return topic
 }
 
-// pub fn (mut t Topic[T]) channel_start() {
+// pub fn (mut t Topic[T]) chann el_start() {
 // 	t.channel.start()
 // }
 

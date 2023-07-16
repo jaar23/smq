@@ -1,8 +1,10 @@
 module queue_server
 
 import net
-import time
-import rand
+// import time
+// import rand
+import toml
+import term
 
 [heap]
 pub struct Queue[T] {
@@ -42,10 +44,45 @@ pub fn init_queue[T]() Queue[T] {
 		addr: '127.0.0.1'
 		port: 6789
 		state: QueueState.start
-		topic: [Topic.new_topic[T]('default')]
+		topic: [Topic.new[T]('default')]
 	}
+	println(term.bg_blue('smq configuration'))
+	println('address        : 127.0.0.1')
+	println('port           : 6789')
+	println('default topic  : default')
 	// q.topic[0].channel.start()
 	return q
+}
+
+pub fn init_queue_with_config[T](path string) !Queue[T] {
+	config := read_config(path) or {panic('Unable to read config file: ${err}')}
+	addr :=  config.value('queue.addr').string()
+	port := config.value('queue.port').int()
+	default_topic := config.value('queue.default_topic').string().trim_space()
+	println(term.bold('smq configuration'))
+	println('address            : ${addr}')
+	println('port               : ${port}')
+	println('default topic      : ${default_topic}')
+	mut q := Queue[T] {
+		addr: addr
+		port: port
+		topic: [Topic.new[T](default_topic)]
+		state: QueueState.start
+	}
+
+	defined_topics := config.value('queue.topics').array()
+	for n in 0.. defined_topics.len{
+		name := defined_topics[n].value('name').string().trim_space()
+	  mut topic := Topic.new[T](name)
+		q.new_topic(mut topic)
+		println('user defined topic : ${name}')
+	}
+
+	return q
+}
+
+pub fn read_config(path string) !toml.Doc {
+	return toml.parse_file(path)
 }
 
 pub fn (mut q Queue[T]) new_topic(mut topic Topic[T]) {
@@ -65,7 +102,7 @@ pub fn (mut q Queue[T]) set_addr(addr string) {
 	q.addr = addr
 }
 
-pub fn (mut q Queue[T]) get_addr() {
+pub fn (mut q Queue[T]) get_addr() string {
 	return q.addr
 }
 
@@ -83,7 +120,7 @@ pub fn (mut q Queue[T]) put(topic_name string, data T) ! {
 }
 
 pub fn (mut q Queue[T]) get(topic_name string) ?T {
-	mut topic := q.get_topic(topic_name) or { return error('Topic not found') }
+	mut topic := q.get_topic(topic_name) or { return none }
 	return topic.dequeue()
 }
 
