@@ -1,7 +1,5 @@
 # smq
 
-queue system implemented in v, inserting 10 million of record in 1 second.
-
 ### Getting Started
 
 `smq` is a simple queue system that allow user get, put data into queue easily.
